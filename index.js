@@ -10,8 +10,8 @@ const MON_NUMERO = "22395064497";
 const MONGO_URI = "mongodb+srv://denji-api:denji1234@cluster0.czgcbse.mongodb.net/denjiDB?retryWrites=true&w=majority";
 
 // URL DES STICKERS (Tu peux changer ces liens par d'autres images .webp)
-const STICKER_MAITRE = "https://telegra.ph/file/79966607e33528b148f34.png"; // Denji content
-const STICKER_INCONNU = "https://telegra.ph/file/0c975191986927d2c3e41.png"; // Denji énervé
+const STICKER_MAITRE = "https://i.ibb.co/M55Bj6pV/temp.jpg"; // Denji content
+const STICKER_INCONNU = "https://i.ibb.co/8ncS99Tf/temp.jpg"; // Denji énervé
 
 mongoose.connect(MONGO_URI).then(() => console.log("Mémoire de Denji OK !"));
 
