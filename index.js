@@ -2,67 +2,64 @@ const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // --- CONFIGURATION ---
 const GEMINI_KEY = "AIzaSyAQwPv-g4W-s5iWYAaxtoJ5gjzI2lBC94o";
 const MON_NUMERO = "22395064497";
 const MONGO_URI = "mongodb+srv://denji-api:denji1234@cluster0.czgcbse.mongodb.net/denjiDB?retryWrites=true&w=majority";
 
-// Connexion MongoDB
-mongoose.connect(MONGO_URI).then(() => console.log("Mémoire de Denji activée !"));
+// URL DES STICKERS (Tu peux changer ces liens par d'autres images .webp)
+const STICKER_MAITRE = "https://telegra.ph/file/79966607e33528b148f34.png"; // Denji content
+const STICKER_INCONNU = "https://telegra.ph/file/0c975191986927d2c3e41.png"; // Denji énervé
 
-const MsgSchema = new mongoose.Schema({
-    userId: String,
-    role: String,
-    text: String,
-    date: { type: Date, default: Date.now }
+mongoose.connect(MONGO_URI).then(() => console.log("Mémoire de Denji OK !"));
+
+const ChatSchema = new mongoose.Schema({
+    sender: String,
+    history: [{ role: String, parts: [{ text: String }] }]
 });
-const Message = mongoose.model('Message', MsgSchema);
+const Chat = mongoose.model('ChatDenji', ChatSchema);
 
-const STICKERS = {
-    content: ["https://telegra.ph/file/0c44a7f0e08f0a0614051.png"],
-    colere: ["https://telegra.ph/file/3b8d6d6e6a1f8e2a3b4c5.png"],
-    debile: ["https://telegra.ph/file/1a2b3c4d5e6f7g8h9i0j.png"]
-};
+// --- CETTE PARTIE RÉPARE LE "NOT FOUND" ---
+app.get('/', (req, res) => {
+    res.send("<h1>Serveur Denji Actif !</h1><p>Pour tester, ajoute <b>/api/denji?text=Salut&sender=123</b> à la fin de l'URL.</p>");
+});
 
+// --- L'API DENJI ---
 app.get('/api/denji', async (req, res) => {
     const { text, sender } = req.query;
-    if (!text) return res.json({ status: false });
+    if (!text || !sender) return res.json({ status: false, error: "Données manquantes" });
 
     try {
-        // 1. Récupérer l'historique (les 6 derniers messages)
-        const history = await Message.find({ userId: sender }).sort({ date: -1 }).limit(6);
-        let chatHistory = history.reverse().map(m => `${m.role}: ${m.text}`).join("\n");
-
-        // 2. Définir le rôle
         const isOwner = sender.includes(MON_NUMERO);
-        const systemPrompt = `Tu es Denji de Chainsaw Man. ${isOwner ? "Tu parles à ton Maître." : "Tu parles à un inconnu."} 
-        Sois familier, un peu idiot, parle de nourriture. 
-        Réponds courtement. FINIS TOUJOURS PAR UN TAG : [content], [colere] ou [debile].`;
+        let userChat = await Chat.findOne({ sender }) || new Chat({ sender, history: [] });
 
-        // 3. Appel Gemini
+        const systemPrompt = `Tu es Denji de Chainsaw Man. ${isOwner ? "Tu parles à ton Maître. Sois fidèle." : "Tu parles à un inconnu. Sois impoli."}`;
+
         const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nHistorique :\n${chatHistory}\nUser: ${text}` }] }]
+            contents: [{ role: "user", parts: [{ text: systemPrompt }]}, ...userChat.history, { role: "user", parts: [{ text: text }]}]
         });
 
-        const aiRes = response.data.candidates[0].content.parts[0].text;
-        
-        // 4. Extraction émotion et nettoyage
-        let emotion = "debile";
-        if (aiRes.includes("[content]")) emotion = "content";
-        if (aiRes.includes("[colere]")) emotion = "colere";
-        const finalMsg = aiRes.replace(/\[.*?\]/g, "").trim();
+        const reply = response.data.candidates[0].content.parts[0].text;
+        const sticker = isOwner ? STICKER_MAITRE : STICKER_INCONNU;
 
-        // 5. Sauvegarder en mémoire
-        await new Message({ userId: sender, role: "User", text }).save();
-        await new Message({ userId: sender, role: "Denji", text: finalMsg }).save();
+        // Sauvegarde mémoire
+        userChat.history.push({ role: "user", parts: [{ text: text }] }, { role: "model", parts: [{ text: reply }] });
+        if (userChat.history.length > 10) userChat.history.shift();
+        await userChat.save();
 
-        res.json({
-            status: true,
-            content: { message: finalMsg, sticker: STICKERS[emotion][0] }
+        // Envoi de la réponse JSON
+        res.json({ 
+            status: true, 
+            content: { 
+                message: reply, 
+                sticker: sticker 
+            } 
         });
-
-    } catch (e) { res.json({ status: false, error: e.message }); }
+    } catch (e) {
+        res.json({ status: false, error: "Erreur Gemini" });
+    }
 });
 
-app.listen(process.env.PORT || 3000);
+app.listen(PORT, () => console.log("Prêt !"));
