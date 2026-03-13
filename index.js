@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const app = express();
 
 // --- CONFIGURATION ---
-const GEMINI_KEY = "TA_CLE_GEMINI_ICI";
+const GEMINI_KEY = "AIzaSyAQwPv-g4W-s5iWYAaxtoJ5gjzI2lBC94o";
 const MON_NUMERO = "22395064497";
 const MONGO_URI = "TON_LIEN_MONGODB_ICI";
 
