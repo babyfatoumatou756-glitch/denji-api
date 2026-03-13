@@ -6,7 +6,7 @@ const app = express();
 // --- CONFIGURATION ---
 const GEMINI_KEY = "AIzaSyAQwPv-g4W-s5iWYAaxtoJ5gjzI2lBC94o";
 const MON_NUMERO = "22395064497";
-const MONGO_URI = "TON_LIEN_MONGODB_ICI";
+const MONGO_URI = "mongodb+srv://denji-api:denji1234@cluster0.czgcbse.mongodb.net/denjiDB?retryWrites=true&w=majority";
 
 // Connexion MongoDB
 mongoose.connect(MONGO_URI).then(() => console.log("Mémoire de Denji activée !"));
