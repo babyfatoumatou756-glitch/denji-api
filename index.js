@@ -8,12 +8,7 @@ const GEMINI_KEY = process.env.GEMINI_KEY;
 const MON_NUMERO = "22395064497";
 const MONGO_URI = "mongodb+srv://denji-api:denji1234@cluster0.czgcbse.mongodb.net/denjiDB?retryWrites=true&w=majority";
 
-mongoose.connect(MONGO_URI).catch(err => console.log("Mongo Error"));
-
-const Chat = mongoose.model('ChatDenji', new mongoose.Schema({
-    sender: String,
-    history: [{ role: String, parts: [{ text: String }] }]
-}));
+mongoose.connect(MONGO_URI).catch(() => console.log("Mongo Down"));
 
 app.get('/', (req, res) => res.send("Denji est vivant !"));
 
@@ -23,24 +18,33 @@ app.get('/api/denji', async (req, res) => {
 
     try {
         const isOwner = sender.includes(MON_NUMERO);
-        // ON UTILISE L'URL LA PLUS STABLE POSSIBLE ICI
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_KEY}`;
+        
+        // LA LIGNE CORRIGÉE (v1 et gemini-1.5-flash)
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
         
         const response = await axios.post(url, {
-            contents: [{ role: "user", parts: [{ text: `Tu es Denji. ${isOwner ? "Salut Maître." : "Sois sec."} Réponds à : ${text}` }] }]
+            contents: [{ 
+                role: "user", 
+                parts: [{ text: `Tu es Denji de Chainsaw Man. ${isOwner ? "Salut Maître." : "Sois sec."} Réponds brièvement à : ${text}` }] 
+            }]
         });
 
-        const reply = response.data.candidates[0].content.parts[0].text;
-
-        res.json({ 
-            status: true, 
-            content: { message: reply, sticker: isOwner ? "https://i.ibb.co/M55Bj6pV/temp.jpg" : "https://i.ibb.co/8ncS99Tf/temp.jpg" } 
-        });
+        if (response.data && response.data.candidates) {
+            const reply = response.data.candidates[0].content.parts[0].text;
+            res.json({ 
+                status: true, 
+                content: { 
+                    message: reply, 
+                    sticker: isOwner ? "https://i.ibb.co/M55Bj6pV/temp.jpg" : "https://i.ibb.co/8ncS99Tf/temp.jpg" 
+                } 
+            });
+        } else {
+            throw new Error("Format de réponse inconnu");
+        }
 
     } catch (e) {
-        // Cette ligne va nous donner la VRAIE réponse de Google dans les logs
-        console.log("ERREUR BRUTE GOOGLE :", e.response ? JSON.stringify(e.response.data) : e.message);
-        res.json({ status: false, message: "Erreur de communication avec l'IA" });
+        console.log("ERREUR BRUTE :", e.response ? JSON.stringify(e.response.data) : e.message);
+        res.json({ status: false, message: "Erreur de connexion à Google" });
     }
 });
 
