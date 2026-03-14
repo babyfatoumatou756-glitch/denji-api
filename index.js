@@ -1,33 +1,49 @@
 const express = require('express');
 const axios = require('axios');
 const mongoose = require('mongoose');
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const GEMINI_KEY = process.env.GEMINI_KEY; 
+const GEMINI_KEY = process.env.GEMINI_KEY;
 const MON_NUMERO = "22395064497";
 
-const MONGO_URI = "mongodb+srv://denji-api:denji1234@cluster0.czgcbse.mongodb.net/denjiDB?retryWrites=true&w=majority";
+// ⚠️ Idéalement mets ça dans ENV plus tard
+const MONGO_URI =
+"mongodb+srv://denji-api:denji1234@cluster0.czgcbse.mongodb.net/denjiDB?retryWrites=true&w=majority";
 
+// ===== MongoDB =====
 mongoose.connect(MONGO_URI)
-.then(() => console.log("Mongo connecté"))
-.catch(() => console.log("Mongo Down"));
+.then(() => console.log("✅ Mongo connecté"))
+.catch(() => console.log("❌ Mongo Down"));
 
-app.get('/', (req, res) => res.send("Denji est vivant !"));
 
+// ===== Route test =====
+app.get('/', (req, res) => {
+    res.send("Denji est vivant !");
+});
+
+
+// ===== API DENJI =====
 app.get('/api/denji', async (req, res) => {
+
     const { text, sender } = req.query;
 
     if (!text || !sender) {
-        return res.json({ status: false, error: "Infos manquantes" });
+        return res.json({
+            status: false,
+            message: "Infos manquantes"
+        });
     }
 
     try {
+
         const isOwner = sender.includes(MON_NUMERO);
 
+        // ✅ URL GEMINI STABLE (IMPORTANT)
         const response = await axios({
             method: "POST",
-            url: `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+            url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
             headers: {
                 "Content-Type": "application/json"
             },
@@ -37,7 +53,9 @@ app.get('/api/denji', async (req, res) => {
                         role: "user",
                         parts: [
                             {
-                                text: `Tu es Denji de Chainsaw Man. ${isOwner ? "Salut Maître." : "Sois sec."} Réponds brièvement à : ${text}`
+                                text: `Tu es Denji de Chainsaw Man. ${
+                                    isOwner ? "Salut Maître." : "Sois sec."
+                                } Réponds brièvement à : ${text}`
                             }
                         ]
                     }
@@ -49,9 +67,13 @@ app.get('/api/denji', async (req, res) => {
             }
         });
 
-        const reply = response?.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        // ✅ récupération sécurisée réponse
+        const reply =
+            response?.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        if (!reply) throw new Error("Réponse vide");
+        if (!reply) {
+            throw new Error("Réponse Gemini vide");
+        }
 
         res.json({
             status: true,
@@ -64,7 +86,11 @@ app.get('/api/denji', async (req, res) => {
         });
 
     } catch (e) {
-        console.log("ERREUR GEMINI:", e.response?.data || e.message);
+
+        console.log(
+            "🔥 ERREUR GEMINI:",
+            e.response?.data || e.message
+        );
 
         res.json({
             status: false,
@@ -73,6 +99,8 @@ app.get('/api/denji', async (req, res) => {
     }
 });
 
+
+// ===== Lancement serveur =====
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Serveur lancé sur ${PORT}`);
+    console.log(`🚀 Serveur lancé sur ${PORT}`);
 });
